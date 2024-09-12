@@ -6,6 +6,7 @@ import (
 	"os/signal"
 
 	"github.com/PierreOudin/TheEvilBot/internal/discord"
+	"github.com/PierreOudin/TheEvilBot/internal/twitch"
 )
 
 func main() {
@@ -19,7 +20,15 @@ func main() {
 
 	s := discord.InitDiscordBot()
 
-	//twitch.GetTwitchToken()
+	twitch.GetTwitchToken()
+
+	twitch.GetStreams("striikerrr_")
+
+	// if err != nil {
+	// 	log.Fatalf("Error : %v", err)
+	// }
+
+	// fmt.Println(token)
 
 	defer s.Close()
 

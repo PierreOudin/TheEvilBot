@@ -93,6 +93,10 @@ func InitDiscordBot() *discordgo.Session {
 		log.Printf("Logged in as: %v#%v", s.State.User.Username, s.State.User.Discriminator)
 	})
 
+	s.AddHandler(func(s *discordgo.Session, m *discordgo.MessageCreate) {
+		log.Printf("MessageCreate %v", m.Author.GlobalName)
+	})
+
 	err := s.Open()
 
 	if err != nil {
