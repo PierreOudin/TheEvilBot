@@ -17,12 +17,9 @@ func main() {
 	// if err != nil {
 	// 	log.Fatalln("Error opening discord session")
 	// }
-
-	s := discord.InitDiscordBot()
-
 	twitch.GetTwitchToken()
 
-	twitch.GetStreams("striikerrr_")
+	s := discord.InitDiscordBot()
 
 	// if err != nil {
 	// 	log.Fatalf("Error : %v", err)

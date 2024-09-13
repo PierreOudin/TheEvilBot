@@ -15,6 +15,7 @@ var clientId string
 var clientSecret string
 
 var token string
+var refreshToken string
 
 const (
 	TWITCH_AUTH_URL string = "https://id.twitch.tv/oauth2/token"
@@ -66,18 +67,22 @@ func GetTwitchToken() {
 		token = str
 	}
 
-	log.Printf("raw body : %v", dataBody["access_token"])
+	str, ok = dataBody["refresh_token"].(string)
+	if ok {
+		refreshToken = str
+	}
 
 	//resp, err := http.Post(TWITCH_AUTH_URL)
 }
 
-func GetStreams(streamer string) {
+func GetStream(streamer string) map[string]interface{} {
 	client := &http.Client{}
 
 	req, err := http.NewRequest("GET", "https://api.twitch.tv/helix/streams", nil)
 
 	if err != nil {
 		log.Fatalf("Error : %v", err)
+		return nil
 	}
 
 	q := req.URL.Query()
@@ -91,6 +96,7 @@ func GetStreams(streamer string) {
 
 	if err != nil {
 		log.Fatalf("Error while requesting : %v", err)
+		return nil
 	}
 
 	defer resp.Body.Close()
@@ -98,6 +104,7 @@ func GetStreams(streamer string) {
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
 		log.Println(err)
+		return nil
 	}
 
 	var dataBody map[string]interface{}
@@ -106,7 +113,8 @@ func GetStreams(streamer string) {
 
 	if err != nil {
 		log.Fatalf("Error while decoding body : %v", err)
+		return nil
 	}
 
-	fmt.Println(dataBody)
+	return dataBody
 }

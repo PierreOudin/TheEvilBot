@@ -3,6 +3,7 @@ package discord
 import (
 	"log"
 
+	discordcommands "github.com/PierreOudin/TheEvilBot/internal/discord/discord_commands"
 	"github.com/PierreOudin/TheEvilBot/internal/utils"
 	"github.com/bwmarrin/discordgo"
 )
@@ -47,14 +48,7 @@ var (
 				},
 			})
 		},
-		"add": func(s *discordgo.Session, i *discordgo.InteractionCreate) {
-			s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
-				Type: discordgo.InteractionResponseChannelMessageWithSource,
-				Data: &discordgo.InteractionResponseData{
-					Content: "Command add",
-				},
-			})
-		},
+		"add": discordcommands.AddStreamers,
 		"delete": func(s *discordgo.Session, i *discordgo.InteractionCreate) {
 			s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
 				Type: discordgo.InteractionResponseChannelMessageWithSource,
@@ -89,13 +83,7 @@ func InitDiscordBot() *discordgo.Session {
 		}
 	})
 
-	s.AddHandler(func(s *discordgo.Session, r *discordgo.Ready) {
-		log.Printf("Logged in as: %v#%v", s.State.User.Username, s.State.User.Discriminator)
-	})
-
-	s.AddHandler(func(s *discordgo.Session, m *discordgo.MessageCreate) {
-		log.Printf("MessageCreate %v", m.Author.GlobalName)
-	})
+	s.AddHandler(StartBot)
 
 	err := s.Open()
 
