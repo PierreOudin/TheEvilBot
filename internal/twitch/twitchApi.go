@@ -7,15 +7,25 @@ import (
 	"io"
 	"log"
 	"net/http"
+	"time"
 
 	"github.com/PierreOudin/TheEvilBot/internal/utils"
 )
 
+type Token struct {
+	token           string
+	expiration_date time.Time
+}
+
+type twitchTokenResponse struct {
+	Access_token string `json:"access_token"`
+	Expires_in   int    `json:"expires_in"`
+	Token_type   string `json:"token_type"`
+}
+
 var clientId string
 var clientSecret string
-
-var token string
-var refreshToken string
+var tokenData Token
 
 const (
 	TWITCH_AUTH_URL string = "https://id.twitch.tv/oauth2/token"
@@ -26,7 +36,7 @@ func init() {
 	clientSecret = utils.GoDotEnvVariable("TWITCH_CLIENTSECRET")
 }
 
-func GetTwitchToken() {
+func getTwitchToken() {
 
 	data := []byte(fmt.Sprintf(`{"client_id": "%v", "client_secret": "%v", "grant_type": "client_credentials"}`, clientId, clientSecret))
 
@@ -54,28 +64,75 @@ func GetTwitchToken() {
 		log.Println(err)
 	}
 
-	var dataBody map[string]interface{}
+	var tokenResponse twitchTokenResponse
 
-	err = json.Unmarshal(body, &dataBody)
+	err = json.Unmarshal(body, &tokenResponse)
 
 	if err != nil {
 		log.Fatalf("Error while decoding body : %v", err)
 	}
 
-	str, ok := dataBody["access_token"].(string)
-	if ok {
-		token = str
+	tokenData.token = tokenResponse.Access_token
+	tokenData.expiration_date = time.Now().Local().Add(time.Second * time.Duration(tokenResponse.Expires_in))
+}
+
+func validateTwitchToken() {
+	if tokenData.token == "" {
+		getTwitchToken()
+		return
 	}
 
-	str, ok = dataBody["refresh_token"].(string)
-	if ok {
-		refreshToken = str
+	client := &http.Client{}
+
+	req, err := http.NewRequest("GET", "https://id.twitch.tv/oauth2/validate", nil)
+
+	if err != nil {
+		log.Fatalf("Error : %v", err)
+		return
 	}
 
-	//resp, err := http.Post(TWITCH_AUTH_URL)
+	req.Header.Add("Authorization", fmt.Sprintf("Bearer %v", tokenData.token))
+
+	fmt.Printf(tokenData.token)
+
+	resp, err := client.Do(req)
+
+	if err != nil {
+		log.Fatalf("Error while requesting : %v", err)
+		return
+	}
+
+	defer resp.Body.Close()
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		log.Println(err)
+		return
+	}
+
+	var dataBody map[string]interface{}
+
+	err = json.Unmarshal(body, &dataBody)
+
+	fmt.Printf("dofy : %v", dataBody)
+
+	if err != nil {
+		log.Fatalf("Error while decoding body : %v", err)
+		return
+	}
+
+	nbr, ok := dataBody["expire_in"].(int)
+
+	if ok {
+		if nbr < 60 {
+			getTwitchToken()
+		}
+	}
 }
 
 func GetStream(streamer string) map[string]interface{} {
+	validateTwitchToken()
+
 	client := &http.Client{}
 
 	req, err := http.NewRequest("GET", "https://api.twitch.tv/helix/streams", nil)
@@ -90,7 +147,7 @@ func GetStream(streamer string) map[string]interface{} {
 	req.URL.RawQuery = q.Encode()
 
 	req.Header.Add("Client-ID", clientId)
-	req.Header.Add("Authorization", fmt.Sprintf("Bearer %v", token))
+	req.Header.Add("Authorization", fmt.Sprintf("Bearer %v", tokenData.token))
 
 	resp, err := client.Do(req)
 
@@ -110,6 +167,8 @@ func GetStream(streamer string) map[string]interface{} {
 	var dataBody map[string]interface{}
 
 	err = json.Unmarshal(body, &dataBody)
+
+	fmt.Printf("dofy : %v", dataBody)
 
 	if err != nil {
 		log.Fatalf("Error while decoding body : %v", err)

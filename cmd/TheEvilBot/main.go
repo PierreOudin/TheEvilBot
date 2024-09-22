@@ -6,7 +6,6 @@ import (
 	"os/signal"
 
 	"github.com/PierreOudin/TheEvilBot/internal/discord"
-	"github.com/PierreOudin/TheEvilBot/internal/twitch"
 )
 
 func main() {
@@ -17,7 +16,6 @@ func main() {
 	// if err != nil {
 	// 	log.Fatalln("Error opening discord session")
 	// }
-	twitch.GetTwitchToken()
 
 	s := discord.InitDiscordBot()
 
