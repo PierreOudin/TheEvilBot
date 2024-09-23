@@ -33,20 +33,15 @@ func StartBot(s *discordgo.Session, r *discordgo.Ready) {
 	}
 
 	if streamChannelID != "" {
-		data := twitch.GetStream("striikerrr_")
+		data, err := twitch.GetStream("striikerrr_")
 
-		mapD, ok := data["data"].(map[string]interface{})
-		var mapData map[string]interface{}
-		if ok {
-			log.Printf("mapData : %v", mapD)
-			mapData = mapD
+		if err != nil {
+			log.Fatalf("Error while getting stream info : %v", err)
 		}
-		var category string = ""
-		str, ok := mapData["game_name"].(string)
-		if ok {
-			category = str
-		}
-		message := fmt.Sprintf("🚀 @everyone striikerrr_ vient de commencer un stream sur %v! Regardez-le ici: https://www.twitch.tv/striikerrr_", category)
+
+		var category string = data.Data[0].GameName
+		var discordStreamName string = strings.ReplaceAll(data.Data[0].UserLogin, "_", "\\_")
+		message := fmt.Sprintf("🚀 @everyone %v vient de commencer un stream sur %v! Regardez-le ici: https://www.twitch.tv/%v", discordStreamName, category, data.Data[0].UserLogin)
 		s.ChannelMessageSend(streamChannelID, message)
 		// interval := time.NewTicker(2 * time.Minute)
 
