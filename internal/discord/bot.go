@@ -47,7 +47,7 @@ var (
 			Options: []*discordgo.ApplicationCommandOption{
 				{
 					Name:        "streamer-name",
-					Description: "Streamer name. To check if they are online",
+					Description: "Streamer name.",
 					Type:        discordgo.ApplicationCommandOptionString,
 					Required:    true,
 				},
@@ -56,6 +56,15 @@ var (
 		{
 			Name:        "delete",
 			Description: "Unfollow a stream",
+			Options: []*discordgo.ApplicationCommandOption{
+				{
+					Name:         "streamer-name",
+					Description:  "Streamer name.",
+					Type:         discordgo.ApplicationCommandOptionString,
+					Required:     true,
+					Autocomplete: true,
+				},
+			},
 		},
 		{
 			Name:        "laststream",
@@ -65,10 +74,20 @@ var (
 
 	commandHandlers = map[string]func(s *discordgo.Session, i *discordgo.InteractionCreate){
 		"streamers": func(s *discordgo.Session, i *discordgo.InteractionCreate) {
+			streamers, err := BotListStreamers()
+			var message string
+			if err != nil {
+				message = err.Error()
+			} else {
+				message = fmt.Sprintln("Les streamers enregistrés sont :")
+				for _, s := range streamers {
+					message = fmt.Sprintf("%v - [%v](https://www.twitch.tv/%v) \n", message, s, s)
+				}
+			}
 			s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
 				Type: discordgo.InteractionResponseChannelMessageWithSource,
 				Data: &discordgo.InteractionResponseData{
-					Content: "Command streamer",
+					Content: message,
 				},
 			})
 		},
@@ -93,12 +112,45 @@ var (
 			})
 		},
 		"delete": func(s *discordgo.Session, i *discordgo.InteractionCreate) {
-			s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
-				Type: discordgo.InteractionResponseChannelMessageWithSource,
-				Data: &discordgo.InteractionResponseData{
-					Content: "Command delete",
-				},
-			})
+			switch i.Type {
+			case discordgo.InteractionApplicationCommandAutocomplete:
+				data := i.ApplicationCommandData()
+				var choices []*discordgo.ApplicationCommandOptionChoice
+
+				for _, s := range Streamers {
+					choices = append(choices, &discordgo.ApplicationCommandOptionChoice{Name: s.StreamerName, Value: s.StreamerName})
+				}
+
+				if data.Options[0].StringValue() != "" {
+					choices = append(choices, &discordgo.ApplicationCommandOptionChoice{
+						Name:  data.Options[0].StringValue(), // To get user input you just get value of the autocomplete option.
+						Value: "choice_custom",
+					})
+				}
+
+				s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
+					Type: discordgo.InteractionApplicationCommandAutocompleteResult,
+					Data: &discordgo.InteractionResponseData{
+						Choices: choices, // This is basically the whole purpose of autocomplete interaction - return custom options to the user.
+					},
+				})
+			case discordgo.InteractionApplicationCommand:
+				streamerName := i.ApplicationCommandData().Options[0].StringValue()
+				isDeleted := BotDeleteStreamers(streamerName)
+				fmt.Println(isDeleted)
+				var message string
+				if isDeleted {
+					message = fmt.Sprintf("Le streamer %v a été supprimé de la liste", streamerName)
+				} else {
+					message = fmt.Sprintf("Le streamer %v n'est pas présent dans la liste", streamerName)
+				}
+				s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
+					Type: discordgo.InteractionResponseChannelMessageWithSource,
+					Data: &discordgo.InteractionResponseData{
+						Content: message,
+					},
+				})
+			}
 		},
 		"laststream": func(s *discordgo.Session, i *discordgo.InteractionCreate) {
 			s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
@@ -152,7 +204,7 @@ func BotAddStreamers(streamer string) (bool, error) {
 	twitchExist := twitch.StreamExist(streamer)
 
 	if !twitchExist {
-		return false, errors.New("le streamer n'existe pas")
+		return false, errors.New("Le streamer n'existe pas")
 	}
 
 	if Streamers != nil {
@@ -174,5 +226,34 @@ func BotAddStreamers(streamer string) (bool, error) {
 			},
 		}
 		return true, nil
+	}
+}
+
+func BotListStreamers() ([]string, error) {
+	if len(Streamers) > 0 {
+		var listStreamers []string
+		for _, streamer := range Streamers {
+			listStreamers = append(listStreamers, streamer.StreamerName)
+		}
+		return listStreamers, nil
+	} else {
+		return nil, errors.New("Aucun streamer enregistré")
+	}
+}
+
+func BotDeleteStreamers(streamer string) bool {
+	var updatedStreamerList []StreamerInfo
+	for _, v := range Streamers {
+		if v.StreamerName != streamer {
+			updatedStreamerList = append(updatedStreamerList, v)
+		}
+	}
+
+	if len(Streamers) != len(updatedStreamerList) {
+		Streamers = updatedStreamerList
+		fmt.Println("toto")
+		return true
+	} else {
+		return false
 	}
 }
